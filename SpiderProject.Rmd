@@ -1,0 +1,325 @@
+---
+title: "SpiderProject"
+author: "Job Knoester"
+date: "21 avril 2017"
+output: html_document
+---
+
+# First analyses
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(include = TRUE)
+
+
+tab <- read.csv2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/MeasureSpider.csv")
+tab <- subset(tab, tab$Method == "Winkler48h")
+tab <- tab[order(tab$Specimen),]
+
+
+std <- read.delim2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Standard.txt")
+
+library(corrplot)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(ade4)
+library(mice)
+library(reshape2)
+library(FD)
+library(gridExtra)
+library(explor)
+library(picante)
+```
+
+## Manipulation step of the dataset
+
+- Unused column and line already eliminated in the CSV 
+- Graduation modified in milimeters
+- Spider smaller than 0.4025mm eliminated
+- NAs completed with the **mice package**
+- Traits weighting
+- Data + 1
+- Log-transphormation
+- Center/scale
+- PCA 4 axes
+- FD calculing
+
+## Strategic dataset controle point
+
+- Taxa subseting (salticidae, blind spider, ...)
+- Weiting metodology
+- Log tranformation
+- PCA axes or traits
+- Number of axes
+- Number of traits (eliminate palp, replace male palp with **mice** data, fusioning fang and chel)
+- Analyse traits one by one
+- Measure convex hull volume or hyper volume
+- Use package FD or not
+- Creat guild by clustering
+
+## Loading data, transphorme graduations into milimetres, complete NAs
+
+All data about spider is in MeasureSpider.csv
+
+The function *transformation* is used to convert the ocular graduation measure in milimeters. It use the zoom level column, the coresponding measure columns and the **standard** table. This new data is save in **measure** table. The **completmeasure** table contain only the spiders with a cephalotorax >= 0.4025 mm (or 2.5 graduation in zoom 6). Then, the NA is replaced by logical value with the package **mice**.
+
+
+```{r, include=FALSE}
+transformation <- function (colzoom1, coltransform1, colzoom2, coltransform2, colzoom3, coltransform3, data) 
+{cbind(data[-c(colzoom1, coltransform1, colzoom2, coltransform2, colzoom3, coltransform3)],
+      data[,coltransform1]*std$standard[match(data[,colzoom1],std$zoom)],
+      data[,coltransform2]*std$standard[match(data[,colzoom2],std$zoom)],
+      data[,coltransform3]*std$standard[match(data[,colzoom3],std$zoom)])
+  }
+
+measure <- transformation(colzoom1 = 5, coltransform1 = c(6:9), 
+                      colzoom2 = 10, coltransform2 = c(11:12), 
+                      colzoom3 = 13, coltransform3 = c(14:18),
+                      data = tab)
+
+measure <- measure[which(is.na(measure$LengthCephalo)==FALSE),]
+measure <- subset(measure, measure$LengthCephalo >= 0.4025)
+
+completmeasuremean <- mice(measure[,10:20], seed = 1)
+completmeasure <- complete(completmeasuremean, 1)
+completmeasure <- cbind(measure[,c(1:9)],completmeasure)
+
+```
+
+In the **proportion** table, all the morphometrics measure from the **completmeasure** table is weighted. (The body size is given by the give the body area ($Lceph*Wceph+Labdo*Wabdo$). The weighted leg size is given by the mean of femur 1 and 3 divided by the cephalotorax length. The larger eye size is weighted by the cephalotoxax width. Chelicera area is divided by the chephalotorax area. The paplus tarse length is weighted by the cephalotoxax length.
+
+```{r}
+proportion <- cbind(completmeasure[,c(1:9)],
+                    completmeasure$LengthCephalo*completmeasure$WidthCephalo+completmeasure$LengthAbdomen*completmeasure$WidthAbdomen,
+                    ((completmeasure$LengthF1femur+completmeasure$LengthF3femur)/2)/completmeasure$LengthCephalo,
+                    completmeasure$LengthEye/completmeasure$WidthCephalo,
+                    (completmeasure$LengthChelicera*completmeasure$WidthChelicera)/(completmeasure$LengthCephalo*completmeasure$WidthCephalo),
+                    completmeasure$LengthFang/completmeasure$WidthChelicera,
+                    completmeasure$LengthPalpusTarsus/completmeasure$LengthCephalo
+                    )
+
+names(proportion)[c(10:15)] <- c("body","leg","eye","chel","fang","palp")
+
+```
+
+Here particular taxa is remooved
+```{r}
+# proportion <- subset(proportion, proportion$Taxo != "blond white salticidae")
+# proportion <- subset(proportion, proportion$Taxo != "salticidae")
+# proportion <- subset(proportion, proportion$Taxo != "white salticidae")
+# proportion <- subset(proportion, proportion$Taxo != "whitesalticideae")
+# proportion <- subset(proportion, proportion$eye != 0)
+```
+
+Transphoration of the proportion data.
+```{r}
+proportionlog <- cbind(proportion[,c(1:9)],log(proportion[,c(10:15)]+1))
+proportionsqrt <- cbind(proportion[,c(1:9)],sqrt(proportion[,c(10:15)]+1))
+```
+
+## Correlation Plots
+
+```{r, fig.height=10, fig.width=10}
+# corrplot.mixed(cor(proportion[,c(10:15)], use = "pairwise.complete.obs"))
+#ggpairs(proportion, mapping = aes(color = Transect, alpha = 0.3), columns = 10:15)
+ggpairs(proportionlog, mapping = aes(color = Transect, alpha = 0.3), columns = 10:15)
+#ggpairs(proportionsqrt, mapping = aes(color = Transect, alpha = 0.3), columns = 10:15)
+
+```
+
+## Traits distributions
+### Palpus with stage and sex
+
+```{r}
+a <- ggplot(proportion, aes(y=palp, x=proportion$StageSex)) +
+  geom_boxplot()
+  
+pairwise.wilcox.test(proportion$palp,proportion$StageSex)
+```
+
+
+other traits
+```{r, fig.height=20, fig.width=10}
+a1 <- ggplot(proportion[,c(6,7,10)], aes(x=body, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+b1 <- ggplot(proportion[,c(6,7,11)], aes(x=leg, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+c1 <- ggplot(proportion[,c(6,7,12)], aes(x=eye, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+d1 <- ggplot(proportion[,c(6,7,13)], aes(x=chel, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+e1 <- ggplot(proportion[,c(6,7,14)], aes(x=fang, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+f1 <- ggplot(proportion[,c(6,7,15)], aes(x=palp, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+
+a2 <- ggplot(proportion[,c(6,10)], aes(x=body, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+b2 <- ggplot(proportion[,c(6,11)], aes(x=leg, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+c2 <- ggplot(proportion[,c(6,12)], aes(x=eye, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+d2 <- ggplot(proportion[,c(6,13)], aes(x=chel, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+e2 <- ggplot(proportion[,c(6,14)], aes(x=fang, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+f2 <- ggplot(proportion[,c(6,15)], aes(x=palp, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+
+a3 <- ggplot(proportionlog[,c(6,7,10)], aes(x=body, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+b3 <- ggplot(proportionlog[,c(6,7,11)], aes(x=leg, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+c3 <- ggplot(proportionlog[,c(6,7,12)], aes(x=eye, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+d3 <- ggplot(proportionlog[,c(6,7,13)], aes(x=chel, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+e3 <- ggplot(proportionlog[,c(6,7,14)], aes(x=fang, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+f3 <- ggplot(proportionlog[,c(6,7,15)], aes(x=palp, fill=Plot)) +
+  geom_density(aes(colour=Transect), alpha = 0, size=1) +
+  theme(legend.position='none')
+
+a4 <- ggplot(proportionlog[,c(6,10)], aes(x=body, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+b4 <- ggplot(proportionlog[,c(6,11)], aes(x=leg, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+c4 <- ggplot(proportionlog[,c(6,12)], aes(x=eye, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+d4 <- ggplot(proportionlog[,c(6,13)], aes(x=chel, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+e4 <- ggplot(proportionlog[,c(6,14)], aes(x=fang, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+f4 <- ggplot(proportionlog[,c(6,15)], aes(x=palp, fill=Transect)) +
+  geom_density(aes(colour=Transect), alpha = 0.3, size = 1)
+
+grid.arrange(a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4,d1,d2,d3,d4,e1,e2,e3,e4,f1,f2,f3,f4, ncol=2)
+# 
+# pairwise.wilcox.test(proportion$body,proportion$Transect)
+# pairwise.wilcox.test(proportion$leg,proportion$Transect)
+# pairwise.wilcox.test(proportion$eye,proportion$Transect)
+# pairwise.wilcox.test(proportion$chel,proportion$Transect)
+# pairwise.wilcox.test(proportion$fang,proportion$Transect)
+# pairwise.wilcox.test(proportion$palp,proportion$Transect)
+
+
+```
+
+
+# PCA
+
+## PCA center scaled with log-transformed traits
+```{r}
+pcaproportionlog <- dudi.pca(proportionlog[,c(10:15)], center=T, scale=T, scannf = F, nf = 4)
+# barplot((pcaproportionlog$eig/length(pcaproportionlog$eig))*100)
+# pcaproportionlog$eig
+# pcaproportionlog$co
+```
+
+## Diversity indices with transects as communities
+```{r}
+proportionlogmatrix <- proportionlog[,c(10:15)]
+row.names(proportionlogmatrix) <- proportionlog[,2]
+
+abundancematrixTransect <- dcast(proportionlog, Transect~Specimen, length)
+row.names(abundancematrixTransect) <- abundancematrixTransect[,1]
+abundancematrixTransect <- abundancematrixTransect[,2:dim(abundancematrixTransect)[2]] 
+
+FDproportionlogTransect <- dbFD(x = proportionlogmatrix, a = abundancematrixTransect, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 6, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDTransect <- as.data.frame(cbind(FDproportionlogTransect$FRic,FDproportionlogTransect$FEve,FDproportionlogTransect$FDiv,FDproportionlogTransect$FDis,FDproportionlogTransect$RaoQ))
+colnames(FDTransect) <- c("FRic","FEve","FDiv","FDis","RaoQ")
+Transect <- c("450m","600m","800m")
+FDTransect <- cbind(Transect,FDTransect)
+# FDTransect
+
+```
+
+## Diversity indices with plots as communities
+```{r}
+abundancematrixPlot <- dcast(proportionlog, Plot~Specimen, length)
+row.names(abundancematrixPlot) <- abundancematrixPlot[,1]
+abundancematrixPlot <- abundancematrixPlot[,2:dim(abundancematrixPlot)[2]] 
+
+FDproportionlogPlot <- dbFD(x = proportionlogmatrix, a = abundancematrixPlot, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 6, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDPlot <- as.data.frame(cbind(FDproportionlogPlot$FRic,FDproportionlogPlot$FEve,FDproportionlogPlot$FDiv,FDproportionlogPlot$FDis,FDproportionlogPlot$RaoQ))
+colnames(FDPlot) <- c("FRic","FEve","FDiv","FDis","RaoQ")
+Transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+# Transect <- c(800,800,800,600,600,600,450,450,450)
+FDPlot <- cbind(Transect,FDPlot)
+# FDPlot
+```
+
+ploting results
+```{r}
+g <-  ggplot() + 
+  geom_boxplot(data = FDPlot, aes(x=Transect, y=FRic),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FRic), size = 3, colour = "red")
+h <-  ggplot() + 
+  geom_boxplot(data = FDPlot, aes(x=Transect, y=FEve),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FEve), size = 3, colour = "red")
+i <-  ggplot() + 
+  geom_boxplot(data = FDPlot, aes(x=Transect, y=FDiv),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FDiv), size = 3, colour = "red")
+j <-  ggplot() + 
+  geom_boxplot(data = FDPlot, aes(x=Transect, y=FDis),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FDis), size = 3, colour = "red")
+k <-  ggplot() + 
+  geom_boxplot(data = FDPlot, aes(x=Transect, y=RaoQ),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = RaoQ), size = 3, colour = "red")
+
+grid.arrange(g,h,i,j,k, ncol=2)
+
+# pairwise.wilcox.test(FDPlot$FRic,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FEve,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FDiv,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FDis,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$RaoQ,FDPlot$Transect)
+# 
+# cor.test(FDPlot$FRic,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FEve,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FDiv,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FDis,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$RaoQ,FDPlot$Transect, method = "spearman")
+
+```
+
+## Nul model
+
+```{r}
+# cassique=list(NULL)
+# awara=list(NULL)
+# for(i in 1:49){ 
+#   for(k in 1:49){
+#     cassique[[k]] = randomizeMatrix(samp = abundancematrixPlot, null.model = "frequency", iterations = 50)
+#   } 
+#   awara[[i]] = dbFD(x = proportionlogmatrix, a = cassique[[i]], w.abun = TRUE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, corr = "lingoes", calc.FRic = TRUE, m = "min", stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR=FALSE, calc.CWM = FALSE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = FALSE)
+# }
+# 
+# machoiron=as.data.frame(matrix(0,9,49)) 
+# for(i in 1:49){ 
+#   machoiron[,i]=data.frame(awara[[i]]$FRic)
+# } 
+# row.names(machoiron)=row.names(abundancematrixPlot)
+# 
+# machoiron <- t(machoiron)
+# 
+# z <- ggplot(machoiron, aes(x=machoiron[1,])) +
+#   geom_density(alpha = 0.3, size = 1)
+```
+
