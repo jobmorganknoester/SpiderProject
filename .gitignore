@@ -4,7 +4,7 @@
 .Ruserdata
 *_cache/
 *_files/
-*.html
+/*.html
 vert.txt
 MeasureSpider.csv
 debug.log
