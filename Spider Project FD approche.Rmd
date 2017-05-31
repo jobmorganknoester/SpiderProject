@@ -1,0 +1,102 @@
+---
+title: "Spider Project FD approche"
+author: "Job Knoester"
+date: "19 mai 2017"
+output: html_document
+---
+
+
+## Diversity indices with transects as communities
+```{r}
+proportionmatrix <- proportion[,c(10:15)]
+row.names(proportionmatrix) <- proportion[,2]
+
+abundancematrixTransect <- dcast(proportion, Transect~Specimen, length)
+row.names(abundancematrixTransect) <- abundancematrixTransect[,1]
+abundancematrixTransect <- abundancematrixTransect[,2:dim(abundancematrixTransect)[2]] 
+
+FDproportionTransect <- dbFD(x = proportionmatrix, a = abundancematrixTransect, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 6, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDTransect <- as.data.frame(cbind(FDproportionTransect$FRic,FDproportionTransect$FEve,FDproportionTransect$FDiv,FDproportionTransect$FDis,FDproportionTransect$RaoQ))
+colnames(FDTransect) <- c("FRic","FEve","FDiv","FDis","RaoQ")
+Transect <- c("450m","600m","800m")
+FDTransect <- cbind(Transect,FDTransect)
+# FDTransect
+
+```
+
+## Diversity indices with plots as communities
+```{r}
+abundancematrixPlot <- dcast(proportion, Plot~Specimen, length)
+row.names(abundancematrixPlot) <- abundancematrixPlot[,1]
+abundancematrixPlot <- abundancematrixPlot[,2:dim(abundancematrixPlot)[2]] 
+
+FDproportionPlot <- dbFD(x = proportionmatrix, a = abundancematrixPlot, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 6, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDPlot <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis,FDproportionPlot$RaoQ))
+colnames(FDPlot) <- c("FRic","FEve","FDiv","FDis","RaoQ")
+Transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+# Transect <- c(800,800,800,600,600,600,450,450,450)
+FDPlot <- cbind(Transect,FDPlot)
+# FDPlot
+```
+
+ploting results
+```{r}
+g <-  ggplot() + 
+  geom_text(data = FDPlot, aes(x=Transect, y=FRic, label=row.names(FDPlot)),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FRic), size = 3, colour = "red")
+h <-  ggplot() + 
+  geom_text(data = FDPlot, aes(x=Transect, y=FEve, label=row.names(FDPlot)),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FEve), size = 3, colour = "red")
+i <-  ggplot() + 
+  geom_text(data = FDPlot, aes(x=Transect, y=FDiv, label=row.names(FDPlot)),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FDiv), size = 3, colour = "red")
+j <-  ggplot() + 
+  geom_text(data = FDPlot, aes(x=Transect, y=FDis, label=row.names(FDPlot)),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = FDis), size = 3, colour = "red")
+k <-  ggplot() + 
+  geom_text(data = FDPlot, aes(x=Transect, y=RaoQ, label=row.names(FDPlot)),  colour="black") + 
+  geom_point(data = FDTransect, aes(x= Transect, y = RaoQ), size = 3, colour = "red")
+
+grid.arrange(g,h,i,j,k, ncol=3)
+
+# pairwise.wilcox.test(FDPlot$FRic,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FEve,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FDiv,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$FDis,FDPlot$Transect)
+# pairwise.wilcox.test(FDPlot$RaoQ,FDPlot$Transect)
+# 
+# cor.test(FDPlot$FRic,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FEve,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FDiv,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$FDis,FDPlot$Transect, method = "spearman")
+# cor.test(FDPlot$RaoQ,FDPlot$Transect, method = "spearman")
+
+```
+
+## Nul model
+
+```{r}
+
+# cassique=list(NULL)
+# awara=list(NULL)
+# for(i in 1:49){ 
+#   for(k in 1:49){
+#     cassique[[k]] = randomizeMatrix(samp = abundancematrixPlot, null.model = "frequency", iterations = 50)
+#   } 
+#   awara[[i]] = dbFD(x = proportionmatrix, a = cassique[[i]], w.abun = TRUE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, corr = "lingoes", calc.FRic = TRUE, m = "min", stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR=FALSE, calc.CWM = FALSE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = FALSE)
+# }
+# 
+# machoiron=as.data.frame(matrix(0,9,49)) 
+# for(i in 1:49){ 
+#   machoiron[,i]=data.frame(awara[[i]]$FRic)
+# } 
+# row.names(machoiron)=row.names(abundancematrixPlot)
+# 
+# machoiron <- t(machoiron)
+# 
+# z <- ggplot(machoiron, aes(x=machoiron[1,])) +
+#   geom_density(alpha = 0.3, size = 1)
+```
+

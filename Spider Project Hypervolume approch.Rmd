@@ -1,0 +1,118 @@
+---
+title: "Spider Project Hypervolume approche"
+author: "Job Knoester"
+date: "19 mai 2017"
+output: html_document
+---
+
+## Meseure multidimentionnal indicises
+```{r, fig.height=10, fig.width=10}
+# bw = estimate_bandwidth(proportioncsmatrix,method="silverman")[1]
+bw <- 0.2
+
+hvtot <- hypervolume(proportioncs[,c(10:15)], bandwidth = bw, repsperpoint = 600)
+
+hv800m <- hypervolume(proportioncs[which(proportioncs$Transect=="800m"),c(10:15)], bandwidth = bw, repsperpoint = 600)
+hv600m <- hypervolume(proportioncs[which(proportioncs$Transect=="600m"),c(10:15)], bandwidth = bw, repsperpoint = 600)
+hv450m <- hypervolume(proportioncs[which(proportioncs$Transect=="450m"),c(10:15)], bandwidth = bw, repsperpoint = 600)
+
+hvtot
+hv800m
+hv600m
+hv450m
+
+nrep <- 99
+
+listproportionsamp800m <- list()
+listproportionsamp600m <- list()
+listproportionsamp450m <- list()
+
+for (i in 1:nrep) {
+  proportioncssamp <- proportioncs[,c(10:15)]
+  set.seed(i)
+  proportioncssamp$Transect <- sample(proportioncs$Transect, length(proportioncs$Transect), replace = F)
+  listproportionsamp800m[[i]] <- subset(proportioncssamp[,c(1:5)], proportioncssamp$Transect=="800m")
+  listproportionsamp600m[[i]] <- subset(proportioncssamp[,c(1:5)], proportioncssamp$Transect=="600m")
+  listproportionsamp450m[[i]] <- subset(proportioncssamp[,c(1:5)], proportioncssamp$Transect=="450m")
+}
+
+hvn800m <- list()
+hvn600m <- list()
+hvn450m <- list()
+cores <- detectCores() - 1
+cl <- makeCluster(cores)
+clusterExport(cl, list(c('listproportionsamp800m','listproportionsamp600m','listproportionsamp450m')))
+hvn800m <- parLapply(cl, listproportionsamp800m, hypervolume, repsperpoint = 600, bandwidth = bw)
+hvn600m <- parLapply(cl, listproportionsamp600m, hypervolume, repsperpoint = 600, bandwidth = bw)
+hvn450m <- parLapply(cl, listproportionsamp450m, hypervolume, repsperpoint = 600, bandwidth = bw)
+stopCluster(cl)
+rm(cl) 
+
+volnull800m <- unlist(lapply(hvn800m,get_volume))
+volnull600m <- unlist(lapply(hvn600m,get_volume))
+volnull450m <- unlist(lapply(hvn450m,get_volume))
+
+hvn800mplot <- ggplot() +  
+  geom_vline(aes(xintercept=get_volume(get_volume(hv800m))), color="blue", size=0.5) +
+  geom_vline(aes(xintercept=volnull800m[which(rank(volnull800m)/(nrep+1)==0.025)]), linetype= "dashed", size=0.5) +
+  geom_vline(aes(xintercept=volnull800m[which(rank(volnull800m)/(nrep+1)==0.975)]), linetype= "dashed", size=0.5) +
+   geom_density(aes(x=volnull800m), alpha = 0) 
+
+hvn600mplot <- ggplot() +  geom_density(aes(x=volnull600m)) + 
+  geom_vline(aes(xintercept=get_volume(get_volume(hv600m))), color="blue", size=0.5) +
+  geom_vline(aes(xintercept=volnull600m[which(rank(volnull600m)/(length(nrep)+1)==0.025)]), linetype= "dashed", size=0.5) +
+  geom_vline(aes(xintercept=volnull600m[which(rank(volnull600m)/(length(nrep)+1)==0.975)]), linetype= "dashed", size=0.5)
+
+hvn450mplot <- ggplot() +  geom_density(aes(x=volnull450m), alpha = 0) + 
+  geom_vline(aes(xintercept=get_volume(get_volume(hv450m))), color="blue", size=0.5) +
+  geom_vline(aes(xintercept=volnull450m[which(rank(volnull450m)/(length(nrep)+1)==0.025)]), linetype= "dashed", size=0.5) +
+  geom_vline(aes(xintercept=volnull450m[which(rank(volnull450m)/(length(nrep)+1)==0.975)]), linetype= "dashed", size=0.5)
+
+hvn800mplot
+hvn600mplot
+hvn450mplot
+
+plot(hypervolume_join(hv800m,hv600m,hv450m))
+```
+
+
+```{r, fig.height=12, fig.width=12}
+hvP1 <- hypervolume(proportioncs[which(proportioncs$Plot=="P1"),c(10:15)], name = "hvP1", bandwidth = bw, repsperpoint = 60)
+hvP2 <- hypervolume(proportioncs[which(proportioncs$Plot=="P2"),c(10:15)], name = "hvP2", bandwidth = bw, repsperpoint = 60)
+hvP3 <- hypervolume(proportioncs[which(proportioncs$Plot=="P3"),c(10:15)], name = "hvP3", bandwidth = bw, repsperpoint = 60)
+hvP4 <- hypervolume(proportioncs[which(proportioncs$Plot=="P4"),c(10:15)], name = "hvP4", bandwidth = bw, repsperpoint = 60)
+hvP5 <- hypervolume(proportioncs[which(proportioncs$Plot=="P5"),c(10:15)], name = "hvP5", bandwidth = bw, repsperpoint = 60)
+hvP6 <- hypervolume(proportioncs[which(proportioncs$Plot=="P6"),c(10:15)], name = "hvP6", bandwidth = bw, repsperpoint = 60)
+hvP7 <- hypervolume(proportioncs[which(proportioncs$Plot=="P7"),c(10:15)], name = "hvP7", bandwidth = bw, repsperpoint = 60)
+hvP8 <- hypervolume(proportioncs[which(proportioncs$Plot=="P8"),c(10:15)], name = "hvP8", bandwidth = bw, repsperpoint = 60)
+hvP9 <- hypervolume(proportioncs[which(proportioncs$Plot=="P9"),c(10:15)], name = "hvP9", bandwidth = bw, repsperpoint = 60)
+
+Transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+hv = unlist(lapply(list(hvP1,hvP2,hvP3,hvP4,hvP5,hvP6,hvP7,hvP8,hvP9)))
+
+vol <- ggplot() + geom_point(aes(x=Transect, y=hv, color=Transect), size = 3) + theme(legend.position='none')
+vol
+
+
+summary(hvP2)
+
+plothv <- plot(hypervolume_join(hvP1,hvP2,hvP3,hvP4,hvP5,hvP6,hvP7,hvP8,hvP9))
+plothv
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

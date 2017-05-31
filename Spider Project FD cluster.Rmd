@@ -1,0 +1,22 @@
+---
+title: "Spider Project Hypervolume approche"
+author: "Job Knoester"
+date: "19 mai 2017"
+output: html_document
+---
+
+
+```{r, fig.height=40, fig.width=12}
+dismatrix <- dist(proportioncs[,c(10:15)])
+dendro = hclust(dismatrix, method="ward")
+plot(dendro, hang=-1)
+barplot(dendro$height)
+dendroplot <- ggdendrogram(dendro, rotate = TRUE, size = 2)
+
+group <- cutree(dendro, 4)
+grp <- merge(group,proportioncs, by = "row.names")
+grp <- subset(grp, grp$Taxo=="longuespattes")
+grp$x <- as.factor(grp$x)
+summary(grp)
+```
+

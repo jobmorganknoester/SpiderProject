@@ -1,0 +1,183 @@
+---
+title: "Spider Project traits by traits approche"
+author: "Job Knoester"
+date: "19 mai 2017"
+output: html_document
+---
+
+# Traits suding :
+
+cwm : community weited mean
+cwv : community weited variance
+cwr : community weited range
+cws : community weited skewness
+cwk : community weited kurtosis
+
+```{r, fig.height=8, fig.width=12}
+basematrix <- matrix(nrow = 9,ncol = 6)
+colnames(basematrix) <- colnames(proportion[,10:15])
+rownames(basematrix) <- names(summary(proportion$Plot))
+basematrix <- as.data.frame(basematrix)
+
+cwm <- basematrix
+cwr <- basematrix
+cwv <- basematrix
+cws <- basematrix
+cwk <- basematrix
+
+for (i in 1:9) {   for (k in 1:6) {
+  cwm[i,k] <- mean(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))
+  cwv[i,k] <- var(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))
+  cwr[i,k] <- max(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))-min(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))
+  cws[i,k] <- skewness(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))
+  cwk[i,k] <- kurtosis(subset(proportion[,k+9],proportion$Plot==names(summary(proportion$Plot))[i]))
+}}
+
+colnames(cwm) <- paste("cwm",colnames(cwm),sep="")
+colnames(cwr) <- paste("cwr",colnames(cwr),sep="")
+colnames(cwv) <- paste("cwv",colnames(cwv),sep="")
+colnames(cws) <- paste("cws",colnames(cws),sep="")
+colnames(cwk) <- paste("cwk",colnames(cwk),sep="")
+transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+# transect <- c(800,800,800,600,600,600,450,450,450)
+plot <- names(summary(proportion$Plot))
+traitsdata <- cbind(transect,plot,cwm,cwr,cwv,cws,cwk)
+
+cwm1 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmbody, color=transect), size = 3) + theme(legend.position='none')
+cwm2 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmleg, color=transect), size = 3) + theme(legend.position='none')
+cwm3 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmeye, color=transect), size = 3) + theme(legend.position='none')
+cwm4 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmchel, color=transect), size = 3) + theme(legend.position='none')
+cwm5 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmfang, color=transect), size = 3) + theme(legend.position='none')
+cwm6 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwmpalp, color=transect), size = 3) + theme(legend.position='none')
+
+cwv1 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwvbody, color=transect), size = 3) + theme(legend.position='none')
+cwv2 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwvleg, color=transect), size = 3) + theme(legend.position='none')
+cwv3 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwveye, color=transect), size = 3) + theme(legend.position='none')
+cwv4 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwvchel, color=transect), size = 3) + theme(legend.position='none')
+cwv5 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwvfang, color=transect), size = 3) + theme(legend.position='none')
+cwv6 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwvpalp, color=transect), size = 3) + theme(legend.position='none')
+
+cwr1 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwrbody, color=transect), size = 3) + theme(legend.position='none')
+cwr2 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwrleg, color=transect), size = 3) + theme(legend.position='none')
+cwr3 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwreye, color=transect), size = 3) + theme(legend.position='none')
+cwr4 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwrchel, color=transect), size = 3) + theme(legend.position='none')
+cwr5 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwrfang, color=transect), size = 3) + theme(legend.position='none')
+cwr6 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwrpalp, color=transect), size = 3) + theme(legend.position='none')
+
+cws1 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwsbody, color=transect), size = 3) + theme(legend.position='none')
+cws2 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwsleg, color=transect), size = 3) + theme(legend.position='none')
+cws3 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwseye, color=transect), size = 3) + theme(legend.position='none')
+cws4 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwschel, color=transect), size = 3) + theme(legend.position='none')
+cws5 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwsfang, color=transect), size = 3) + theme(legend.position='none')
+cws6 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwspalp, color=transect), size = 3) + theme(legend.position='none')
+
+cwk1 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkbody, color=transect), size = 3) + theme(legend.position='none')
+cwk2 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkleg, color=transect), size = 3) + theme(legend.position='none')
+cwk3 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkeye, color=transect), size = 3) + theme(legend.position='none')
+cwk4 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkchel, color=transect), size = 3) + theme(legend.position='none')
+cwk5 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkfang, color=transect), size = 3) + theme(legend.position='none')
+cwk6 <- ggplot(traitsdata) + geom_point(aes(x=transect, y=cwkpalp, color=transect), size = 3) + theme(legend.position='none')
+
+
+grid.arrange(a1,b1,c1,d1,e1,f1,cwm1,cwm2,cwm3,cwm4,cwm5,cwm6,cwv1,cwv2,cwv3,cwv4,cwv5,cwv6,cwr1,cwr2,cwr3,cwr4,cwr5,cwr6,cws1,cws2,cws3,cws4,cws5,cws6,cwk1,cwk2,cwk3,cwk4,cwk5,cwk6, ncol=6)
+```
+# Wicoxon test betwenn
+```{r}
+apply(traitsdata[,3:32],2,pairwise.wilcox.test,traitsdata$transect)
+# apply(traitsdata[,3:32],2,cor.test,traitsdata$transect)
+
+```
+
+
+# Nul model generation
+
+```{r}
+nrep <- 1:999
+
+basematrix <- matrix(nrow = 9,ncol = 6)
+colnames(basematrix) <- colnames(proportion[,10:15])
+rownames(basematrix) <- names(summary(proportion$Plot))
+basematrix <- as.data.frame(basematrix)
+traitssamp <- list()
+
+for (j in nrep) {
+  cwm <- basematrix
+  cwr <- basematrix
+  cwv <- basematrix
+  cws <- basematrix
+  cwk <- basematrix
+  proportionsamp <- proportion
+  
+  set.seed(j)
+  
+  proportionsamp$Plot <- sample(proportionsamp$Plot, length(proportionsamp$Plot), replace = F)
+  
+  for (i in 1:9) {   
+    for (k in 1:6) {
+      cwm[i,k] <- mean(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))
+      cwv[i,k] <- var(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))
+      cwr[i,k] <- max(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))-min(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))
+      cws[i,k] <- skewness(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))
+      cwk[i,k] <- kurtosis(subset(proportionsamp[,k+9],proportionsamp$Plot==names(summary(proportionsamp$Plot))[i]))
+    }
+  }
+  
+  colnames(cwm) <- paste("cwm",colnames(cwm),sep="")
+  colnames(cwv) <- paste("cwv",colnames(cwv),sep="")
+  colnames(cwr) <-paste("cwr",colnames(cwr),sep="")
+  colnames(cws) <-paste("cws",colnames(cws),sep="")
+  colnames(cwk) <-paste("cwk",colnames(cwk),sep="")
+  
+  transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+  plot <- names(summary(proportion$Plot))
+  
+  traitssamp[[j]] <- cbind(transect,plot,cwm,cwr,cwv,cws,cwk)
+}
+
+traitssamp3d <- array(unlist(traitssamp), dim=c(dim(traitssamp[[1]]),length(traitssamp)),dimnames = list(rownames(traitssamp[[1]]), colnames(traitssamp[[1]]), nrep))
+traitssamp3d <- aperm(traitssamp3d)
+
+```
+
+
+```{r}
+
+nplot <- 1:9
+nind <- 1:30
+
+pvalue <- matrix(nrow = 9,ncol = 32)
+colnames(pvalue) <- colnames(traitsdata)
+rownames(pvalue) <- rownames(traitsdata)
+pvalue <- as.data.frame(pvalue)
+pvalue[,1] <- transect 
+pvalue[,2] <- plot
+
+for (i in nplot) {   
+  for (k in nind) {
+    pvalue[i,k+2] <- (rank(unname(c(traitsdata[i,k+2], traitssamp3d[,k+2,i])))/(length(nrep)+1))[1]
+    if (pvalue[i,k+2]<0.025) {pvalue[i,k+2] <- paste("SE",":",pvalue[i,k+2])}
+    else{if (pvalue[i,k+2]>0.975) {pvalue[i,k+2] <- paste("HE",":",pvalue[i,k+2])}
+    else {pvalue[i,k+2] <- paste("exp",":",pvalue[i,k+2])}}
+  }
+}
+
+pvalue
+
+
+traitsdataplot <- list()
+
+for (i in nplot) {   
+  for (k in nind) {
+    
+allvalue <- unname(c(traitsdata[i,k+2], traitssamp3d[,k+2,i]))
+
+traitsdataplot[[i*k]] <- ggplot() +  geom_density(aes(x=as.matrix(traitssamp3d[,k+2,i])), alpha = 0) + 
+  geom_vline(aes(xintercept=traitsdata[i,k+2]), color="blue", size=0.5) +
+  geom_vline(aes(xintercept=allvalue[which(rank(allvalue)/(length(nrep)+1)==0.025)]), linetype= "dashed", size=0.5) +
+  geom_vline(aes(xintercept=allvalue[which(rank(allvalue)/(length(nrep)+1)==0.975)]), linetype= "dashed", size=0.5)
+  }
+}
+
+arrangeGrob(grobs = traitsdataplot[-c(62,65,66)], ncol=5)
+
+```
