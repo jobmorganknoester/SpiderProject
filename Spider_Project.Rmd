@@ -1,0 +1,224 @@
+---
+title: "Spider_Project"
+author: "Job Knoester"
+date: "7 juin 2017"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(include = TRUE)
+
+library(corrplot)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(ade4)
+library(mice)
+library(reshape2)
+library(FD)
+library(gridExtra)
+library(explor)
+library(picante)
+library(parallel)
+library(hypervolume)
+library(moments)
+library(cati)
+library(ggdendro)
+library(doBy)
+library(BayesFactor)
+
+proportion <- read.csv("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Spider_weited_traits.csv")
+row.names(proportion) <- paste(proportion$Specimen,proportion$Taxo,proportion$StageSex)
+
+prosal <- subset(proportion,proportion$Taxo=="salticidae")
+pronotsal <- subset(proportion,proportion$Taxo!="salticidae")
+# pronotsal <- subset(pronotsal,pronotsal$eye > 0)
+
+pcasal <- dudi.pca(prosal[,c(10:14)], center=T, scale=T, scannf = F, nf = 5)
+pcanotsal <- dudi.pca(pronotsal[,c(10:14)], center=T, scale=T, scannf = F, nf = 5)
+pcaant <- dudi.pca(proant[,c(11:15)], center=T, scale=T, scannf = F, nf = 5)
+
+```
+
+
+
+```{r}
+promatsal <- prosal[,c(2,10:14)]
+row.names(promatsal) <- promatsal$Specimen
+promatsal <- promatsal[,2:dim(promatsal)[2]]
+
+abundmatsal <- dcast(prosal, Plot~Specimen, length)
+row.names(abundmatsal) <- abundmatsal[,1]
+abundmatsal <- abundmatsal[,2:dim(abundmatsal)[2]] 
+
+dbFDsal <- dbFD(x = promatsal, a = abundmatsal, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = "max", stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDsal <- as.data.frame(cbind(dbFDsal$FRic,dbFDsal$FEve,dbFDsal$FDiv,dbFDsal$FDis))
+colnames(FDsal) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(prosal[order(prosal$Plot),c("Plot","Transect")])$Transect
+# Transect <- c(800,800,600,600,600,450,450,450)
+
+FDsal <- cbind(Transect,FDsal)
+```
+
+```{r}
+promatnotsal <- pronotsal[,c(2,10:14)]
+row.names(promatnotsal) <- promatnotsal$Specimen
+promatnotsal <- promatnotsal[,2:dim(promatnotsal)[2]]
+
+abundmatnotsal <- dcast(pronotsal, Plot~Specimen, length)
+row.names(abundmatnotsal) <- abundmatnotsal[,1]
+abundmatnotsal <- abundmatnotsal[,2:dim(abundmatnotsal)[2]] 
+
+dbFDnotsal <- dbFD(x = promatnotsal, a = abundmatnotsal, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = "max", stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDnotsal <- as.data.frame(cbind(dbFDnotsal$FRic,dbFDnotsal$FEve,dbFDnotsal$FDiv,dbFDnotsal$FDis))
+colnames(FDnotsal) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(pronotsal[order(pronotsal$Plot),c("Plot","Transect")])$Transect
+# Transect <- c(800,800,800,600,600,600,450,450,450)
+
+FDnotsal <- cbind(Transect,FDnotsal)
+```
+
+```{r, fig.height=7, fig.width=12}
+FDsal$group <- 'Salticidae'
+FDnotsal$group <- 'Not Salticidae'
+FDant$group <- 'Ants'
+FD <- rbind(FDsal, FDnotsal, FDant)
+FD$plot <- c(row.names(FDsal),row.names(FDnotsal),row.names(FDant))
+FD <- reshape2::melt(FD, id.vars = c('plot', 'Transect', 'group'))
+ggplot(FD, aes(x = Transect, y = value, label = plot)) +
+  facet_wrap(group~variable, scales = "free_y") +
+  geom_text()
+```
+
+
+```{r}
+
+pairwise.wilcox.test(FDsal$FRic,FDsal$Transect)
+pairwise.wilcox.test(FDsal$FEve,FDsal$Transect)
+pairwise.wilcox.test(FDsal$FDiv,FDsal$Transect)
+pairwise.wilcox.test(FDsal$FDis,FDsal$Transect) 
+
+pairwise.wilcox.test(FDnotsal$FRic,FDnotsal$Transect) 
+pairwise.wilcox.test(FDnotsal$FEve,FDnotsal$Transect)
+pairwise.wilcox.test(FDnotsal$FDiv,FDnotsal$Transect)
+pairwise.wilcox.test(FDnotsal$FDis,FDnotsal$Transect)
+
+pairwise.wilcox.test(FDant$FRic,FDant$Transect) 
+pairwise.wilcox.test(FDant$FEve,FDant$Transect)
+pairwise.wilcox.test(FDant$FDiv,FDant$Transect)
+pairwise.wilcox.test(FDant$FDis,FDant$Transect)
+
+shapiro.test(FDsal$FRic)
+shapiro.test(FDsal$FEve)
+shapiro.test(FDsal$FDiv)
+shapiro.test(FDsal$FDis) 
+
+shapiro.test(FDnotsal$FRic) 
+shapiro.test(FDnotsal$FEve)
+shapiro.test(FDnotsal$FDiv)
+shapiro.test(FDnotsal$FDis)
+
+shapiro.test(FDantPlot$FRic) 
+shapiro.test(FDantPlot$FEve)
+shapiro.test(FDantPlot$FDiv)
+shapiro.test(FDantPlot$FDis)
+
+
+modFRicsal <- aov(FDsal$FRic ~ FDsal$Transect)
+modFEvesal <- aov(FDsal$FEve ~ FDsal$Transect)
+modFDivsal <- aov(FDsal$FDiv ~ FDsal$Transect)
+modFDissal <- aov(FDsal$FDis ~ FDsal$Transect) 
+
+modFRicnotsal <- aov(FDnotsal$FRic ~ FDnotsal$Transect) 
+modFEvenotsal <- aov(FDnotsal$FEve ~ FDnotsal$Transect)
+modFDivnotsal <- aov(FDnotsal$FDiv ~ FDnotsal$Transect)
+modFDisnotsal <- aov(FDnotsal$FDis ~ FDnotsal$Transect)
+
+modFRicant <- aov(FDant$FRic ~ FDant$Transect) 
+modFEveant <- aov(FDant$FEve ~ FDant$Transect)
+modFDivant <- aov(FDant$FDiv ~ FDant$Transect)
+modFDisant <- aov(FDant$FDis ~ FDant$Transect)
+
+anova(modFRicsal)
+anova(modFEvesal)
+anova(modFDivsal)
+anova(modFDissal)
+# 
+anova(modFRicnotsal)
+anova(modFEvenotsal)
+anova(modFDivnotsal)
+anova(modFDisnotsal)
+
+anova(modFRicant)
+anova(modFEveant)
+anova(modFDivant)
+anova(modFDisant)
+
+
+model <- anovaBF(FEve~Transect, data = FDant, whichModels="withmain", whichRandom="s", iterations = 100000)
+model
+
+cor.test(FDsal$FRic,FDsal$Transect, method = "spearman")
+cor.test(FDsal$FEve,FDsal$Transect, method = "spearman")
+cor.test(FDsal$FDiv,FDsal$Transect, method = "spearman")
+cor.test(FDsal$FDis,FDsal$Transect, method = "spearman")
+
+cor.test(FDnotsal$FRic,FDnotsal$Transect, method = "spearman")
+cor.test(FDnotsal$FEve,FDnotsal$Transect, method = "spearman")
+cor.test(FDnotsal$FDiv,FDnotsal$Transect, method = "spearman")
+cor.test(FDnotsal$FDis,FDnotsal$Transect, method = "spearman")
+
+cor.test(FDant$FRic,FDant$Transect, method = "spearman")
+cor.test(FDant$FEve,FDant$Transect, method = "spearman")
+cor.test(FDant$FDiv,FDant$Transect, method = "spearman")
+cor.test(FDant$FDis,FDant$Transect, method = "spearman")
+
+cor.test(FDnotsal$FRic,FDant$FRic, method = "spearman")
+cor.test(FDnotsal$FEve,FDant$FEve, method = "spearman")
+cor.test(FDnotsal$FDiv,FDant$FDiv, method = "spearman")
+cor.test(FDnotsal$FDis,FDant$FDis, method = "spearman")
+
+cor.test(FDsal$FRic,FDant$FRic[-2], method = "spearman")
+cor.test(FDsal$FEve,FDant$FEve[-2], method = "spearman")
+cor.test(FDsal$FDiv,FDant$FDiv[-2], method = "spearman")
+cor.test(FDsal$FDis,FDant$FDis[-2], method = "spearman")
+
+cor.test(FDnotsal$FRic[-2],FDsal$FRic, method = "spearman")
+cor.test(FDnotsal$FEve[-2],FDsal$FEve, method = "spearman")
+cor.test(FDnotsal$FDiv[-2],FDsal$FDiv, method = "spearman")
+cor.test(FDnotsal$FDis[-2],FDsal$FDis, method = "spearman")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

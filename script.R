@@ -23,17 +23,17 @@ pcaplot <- function (pca, firstaxis, secondaxis) {
   return (ggplotly(plot))
 }
 
-pcaproportionlog <- dudi.pca(proportionlog[,c(10:15)], center=T, scale=T, scannf = F, nf = 4)
+pcaproportion <- dudi.pca(proportion[,c(10:13)], center=T, scale=T, scannf = F, nf = 4)
 barplot((pcaproportionlog$eig/length(pcaproportionlog$eig))*100)
 # pcaproportionlog$eig
 # pcaproportionlog$co
 
-pcaplot(pca = pcaproportionlog, firstaxis = 1, secondaxis = 2)
-pcaplot(pca = pcaproportionlog, firstaxis = 2, secondaxis = 3)
-pcaplot(pca = pcaproportionlog, firstaxis = 1, secondaxis = 3)
-pcaplot(pca = pcaproportionlog, firstaxis = 1, secondaxis = 4)
-pcaplot(pca = pcaproportionlog, firstaxis = 2, secondaxis = 4)
-pcaplot(pca = pcaproportionlog, firstaxis = 3, secondaxis = 4)
+pcaplot(pca = pcaproportion, firstaxis = 1, secondaxis = 2)
+pcaplot(pca = pcaproportion, firstaxis = 2, secondaxis = 3)
+pcaplot(pca = pcaproportion, firstaxis = 1, secondaxis = 3)
+pcaplot(pca = pcaproportion, firstaxis = 1, secondaxis = 4)
+pcaplot(pca = pcaproportion, firstaxis = 2, secondaxis = 4)
+pcaplot(pca = pcaproportion, firstaxis = 3, secondaxis = 4)
 
 
 

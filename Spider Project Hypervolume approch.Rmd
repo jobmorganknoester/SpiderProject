@@ -4,7 +4,35 @@ author: "Job Knoester"
 date: "19 mai 2017"
 output: html_document
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(include = TRUE)
 
+library(corrplot)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(ade4)
+library(mice)
+library(reshape2)
+library(FD)
+library(gridExtra)
+library(explor)
+library(picante)
+library(parallel)
+library(hypervolume)
+library(moments)
+library(cati)
+library(ggdendro)
+library(doBy)
+
+proportion <- read.csv("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Spider_weited_traits.csv")
+row.names(proportion) <- paste(proportion$Specimen,proportion$Taxo,proportion$StageSex)
+proportioncs <- cbind(proportion[,c(1:9)],scale(proportion[,c(10:15)],center = T, scale = T))
+
+```
 ## Meseure multidimentionnal indicises
 ```{r, fig.height=10, fig.width=10}
 # bw = estimate_bandwidth(proportioncsmatrix,method="silverman")[1]

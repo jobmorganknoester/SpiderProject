@@ -4,19 +4,244 @@ author: "Job Knoester"
 date: "19 mai 2017"
 output: html_document
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(include = TRUE)
 
+library(corrplot)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(ade4)
+library(mice)
+library(reshape2)
+library(FD)
+library(gridExtra)
+library(explor)
+library(picante)
+library(parallel)
+library(hypervolume)
+library(moments)
+library(cati)
+library(ggdendro)
+library(doBy)
 
-```{r, fig.height=40, fig.width=12}
-dismatrix <- dist(proportioncs[,c(10:15)])
-dendro = hclust(dismatrix, method="ward")
-plot(dendro, hang=-1)
-barplot(dendro$height)
-dendroplot <- ggdendrogram(dendro, rotate = TRUE, size = 2)
-
-group <- cutree(dendro, 4)
-grp <- merge(group,proportioncs, by = "row.names")
-grp <- subset(grp, grp$Taxo=="longuespattes")
-grp$x <- as.factor(grp$x)
-summary(grp)
+proportion <- read.csv("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Spider_weited_traits.csv")
+row.names(proportion) <- paste(proportion$Specimen,proportion$Taxo,proportion$StageSex)
+prosal <- subset(proportion,proportion$Taxo=="salticidae")
+pronotsal <- subset(proportion,proportion$Taxo!="salticidae")
+prosalcs <- cbind(prosal[,c(1:9)],scale(prosal[,c(10:14)],center = T, scale = T))
+pronotsalcs <- cbind(pronotsal[,c(1:9)],scale(pronotsal[,c(10:14)],center = T, scale = T))
 ```
+
+```{r, fig.height=80, fig.width=12}
+dismatrix <- dist(pronotsal[,c(10:14)])
+
+# dendro1=hclust(dismatrix, method="single")
+# dendro2=hclust(dismatrix, method="complete")
+# dendro3=hclust(dismatrix, method="average")
+dendro4=hclust(dismatrix, method="ward")
+
+# dendroplot1 <- ggdendrogram(dendro1, rotate = TRUE, size = 2)
+# dendroplot2 <- ggdendrogram(dendro2, rotate = TRUE, size = 2)
+# dendroplot3 <- ggdendrogram(dendro3, rotate = TRUE, size = 2)
+dendroplot4 <- ggdendrogram(dendro4, rotate = TRUE, size = 2)
+
+# dendroplot1
+# dendroplot2
+# dendroplot3
+dendroplot4
+
+```
+
+```{r}
+# barplot(dendro1$height)
+# barplot(dendro2$height)
+# barplot(dendro3$height)
+barplot(dendro4$height)
+
+# d1=cophenetic(dendro1)
+# d2=cophenetic(dendro2)
+# d3=cophenetic(dendro3)
+# d4=cophenetic(dendro4)
+# cor(d1, dismatrix)
+# cor(d2, dismatrix)
+# cor(d3, dismatrix)
+# cor(d4, dismatrix)
+```
+
+```{r}
+
+group4 <- cutree(dendro4, k=16)
+
+
+grpe4 <- merge(group4,pronotsalcs, by = "row.names")
+grpe4$x <- as.factor(grpe4$x)
+summary(grpe4$x)
+
+propmat4 <-summaryBy(data = grpe4, 
+                       formula = body+leg+eye+chel+fang ~ x, 
+                       FUN = mean, keep.names = T, na.rm = T)
+propmat4 <- propmat4[,-1]
+
+abmatPlot4 <- dcast(grpe4, Plot~x, length)
+row.names(abmatPlot4) <- abmatPlot4[,1]
+abmatPlot4 <- abmatPlot4[,2:dim(abmatPlot4)[2]] 
+
+FDclustPlot4 <- dbFD(x = propmat4, a = abmatPlot4, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 6, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDPlt4 <- as.data.frame(cbind(FDclustPlot4$FRic,FDclustPlot4$FEve,FDclustPlot4$FDiv,FDclustPlot4$FDis,FDclustPlot4$RaoQ))
+colnames(FDPlt4) <- c("FRic","FEve","FDiv","FDis","RaoQ")
+Transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+FDPlt4 <- cbind(Transect,FDPlt4)
+```
+
+```{r, fig.height=5, fig.width=12}
+
+FDPlt4$group <- 'Salticidae'
+# FDnotsal$group <- 'Not Salticidae'
+# FDant$group <- 'Ants'
+# FD <- rbind(FDsal, FDnotsal, FDant)
+FDPlt4$plot <- row.names(FDPlt4)
+FDPlt4 <- reshape2::melt(FDPlt4, id.vars = c('plot', 'Transect'))
+ggplot(FDPlt4, aes(x = Transect, y = value, label = plot)) +
+  facet_wrap(~variable, scales = "free_y") +
+  geom_text()
+```
+
+```{r, fig.height=10, fig.width=10}
+nbgrp <- 2
+dismatrix <- dist(proportioncs[,c(10:13)])
+dendro=hclust(dismatrix, method="ward")
+group <- cutree(dendro, k=nbgrp)
+groupprop <- merge(group,proportion, by = "row.names")
+groupprop$group <- as.factor(groupprop$x)
+groupprop <- groupprop[,3:dim(groupprop)[2]]
+
+progrp1 <- subset(groupprop,groupprop$group=="1")
+progrp1mat <- progrp1[,c(2,10:13)]
+row.names(progrp1mat) <- progrp1mat$Specimen
+progrp1mat <- progrp1mat[,2:dim(progrp1mat)[2]]
+abundgrp1mat <- dcast(progrp1, Plot~Specimen, length)
+row.names(abundgrp1mat) <- abundgrp1mat[,1]
+abundgrp1mat <- abundgrp1mat[,2:dim(abundgrp1mat)[2]] 
+FDproportionPlot <- dbFD(x = progrp1mat, a = abundgrp1mat, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 4, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+FDgrp1 <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis))
+colnames(FDgrp1) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(progrp1[order(progrp1$Plot),c("Plot","Transect")])$Transect
+Group <- rep("grp1",length(Transect))
+FDgrp1 <- cbind(Group,Transect,FDgrp1)
+
+progrp2 <- subset(groupprop,groupprop$group=="2")
+progrp2mat <- progrp2[,c(2,10:13)]
+row.names(progrp2mat) <- progrp2mat$Specimen
+progrp2mat <- progrp2mat[,2:dim(progrp2mat)[2]]
+abundgrp2mat <- dcast(progrp2, Plot~Specimen, length)
+row.names(abundgrp2mat) <- abundgrp2mat[,1]
+abundgrp2mat <- abundgrp2mat[,2:dim(abundgrp2mat)[2]] 
+FDproportionPlot <- dbFD(x = progrp2mat, a = abundgrp2mat, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 4, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+FDgrp2 <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis))
+colnames(FDgrp2) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(progrp2[order(progrp2$Plot),c("Plot","Transect")])$Transect
+Group <- rep("grp2",length(Transect))
+FDgrp2 <- cbind(Group,Transect,FDgrp2)
+
+progrp3 <- subset(groupprop,groupprop$group=="3")
+progrp3mat <- progrp3[,c(2,10:13)]
+row.names(progrp3mat) <- progrp3mat$Specimen
+progrp3mat <- progrp3mat[,2:dim(progrp3mat)[2]]
+abundgrp3mat <- dcast(progrp3, Plot~Specimen, length)
+row.names(abundgrp3mat) <- abundgrp3mat[,1]
+abundgrp3mat <- abundgrp3mat[,2:dim(abundgrp3mat)[2]] 
+FDproportionPlot <- dbFD(x = progrp3mat, a = abundgrp3mat, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 4, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+FDgrp3 <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis))
+colnames(FDgrp3) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(progrp3[order(progrp3$Plot),c("Plot","Transect")])$Transect
+Group <- rep("grp3",length(Transect))
+FDgrp3 <- cbind(Group,Transect,FDgrp3)
+
+progrp4 <- subset(groupprop,groupprop$group=="4")
+progrp4mat <- progrp4[,c(2,10:13)]
+row.names(progrp4mat) <- progrp4mat$Specimen
+progrp4mat <- progrp4mat[,2:dim(progrp4mat)[2]]
+abundgrp4mat <- dcast(progrp4, Plot~Specimen, length)
+row.names(abundgrp4mat) <- abundgrp4mat[,1]
+abundgrp4mat <- abundgrp4mat[,2:dim(abundgrp4mat)[2]] 
+FDproportionPlot <- dbFD(x = progrp4mat, a = abundgrp4mat, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 4, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+FDgrp4 <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis))
+colnames(FDgrp4) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(progrp4[order(progrp4$Plot),c("Plot","Transect")])$Transect
+Group <- rep("grp4",length(Transect))
+FDgrp4 <- cbind(Group,Transect,FDgrp4)
+
+progrp5 <- subset(groupprop,groupprop$group=="5")
+progrp5mat <- progrp5[,c(2,10:13)]
+row.names(progrp5mat) <- progrp5mat$Specimen
+progrp5mat <- progrp5mat[,2:dim(progrp5mat)[2]]
+abundgrp5mat <- dcast(progrp5, Plot~Specimen, length)
+row.names(abundgrp5mat) <- abundgrp5mat[,1]
+abundgrp5mat <- abundgrp5mat[,2:dim(abundgrp5mat)[2]] 
+FDproportionPlot <- dbFD(x = progrp5mat, a = abundgrp5mat, w.abun = FALSE, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = 4, stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+FDgrp5 <- as.data.frame(cbind(FDproportionPlot$FRic,FDproportionPlot$FEve,FDproportionPlot$FDiv,FDproportionPlot$FDis))
+colnames(FDgrp5) <- c("FRic","FEve","FDiv","FDis")
+Transect <- unique(progrp5[order(progrp5$Plot),c("Plot","Transect")])$Transect
+Group <- rep("grp5",length(Transect))
+FDgrp5 <- cbind(Group,Transect,FDgrp5)
+
+FRicgrp1 <-  ggplot() + geom_text(data = FDgrp1, aes(x=Transect, y=FRic, label=row.names(FDgrp1)),  colour="black") 
+FEvegrp1 <-  ggplot() + geom_text(data = FDgrp1, aes(x=Transect, y=FEve, label=row.names(FDgrp1)),  colour="black")
+FDivgrp1 <-  ggplot() + geom_text(data = FDgrp1, aes(x=Transect, y=FDiv, label=row.names(FDgrp1)),  colour="black")
+FDisgrp1 <-  ggplot() + geom_text(data = FDgrp1, aes(x=Transect, y=FDis, label=row.names(FDgrp1)),  colour="black") 
+FRicgrp2 <-  ggplot() + geom_text(data = FDgrp2, aes(x=Transect, y=FRic, label=row.names(FDgrp2)),  colour="black") 
+FEvegrp2 <-  ggplot() + geom_text(data = FDgrp2, aes(x=Transect, y=FEve, label=row.names(FDgrp2)),  colour="black")
+FDivgrp2 <-  ggplot() + geom_text(data = FDgrp2, aes(x=Transect, y=FDiv, label=row.names(FDgrp2)),  colour="black")
+FDisgrp2 <-  ggplot() + geom_text(data = FDgrp2, aes(x=Transect, y=FDis, label=row.names(FDgrp2)),  colour="black") 
+FRicgrp3 <-  ggplot() + geom_text(data = FDgrp3, aes(x=Transect, y=FRic, label=row.names(FDgrp3)),  colour="black") 
+FEvegrp3 <-  ggplot() + geom_text(data = FDgrp3, aes(x=Transect, y=FEve, label=row.names(FDgrp3)),  colour="black")
+FDivgrp3 <-  ggplot() + geom_text(data = FDgrp3, aes(x=Transect, y=FDiv, label=row.names(FDgrp3)),  colour="black")
+FDisgrp3 <-  ggplot() + geom_text(data = FDgrp3, aes(x=Transect, y=FDis, label=row.names(FDgrp3)),  colour="black") 
+FRicgrp4 <-  ggplot() + geom_text(data = FDgrp4, aes(x=Transect, y=FRic, label=row.names(FDgrp4)),  colour="black") 
+FEvegrp4 <-  ggplot() + geom_text(data = FDgrp4, aes(x=Transect, y=FEve, label=row.names(FDgrp4)),  colour="black")
+FDivgrp4 <-  ggplot() + geom_text(data = FDgrp4, aes(x=Transect, y=FDiv, label=row.names(FDgrp4)),  colour="black")
+FDisgrp4 <-  ggplot() + geom_text(data = FDgrp4, aes(x=Transect, y=FDis, label=row.names(FDgrp4)),  colour="black") 
+FRicgrp5 <-  ggplot() + geom_text(data = FDgrp5, aes(x=Transect, y=FRic, label=row.names(FDgrp5)),  colour="black") 
+FEvegrp5 <-  ggplot() + geom_text(data = FDgrp5, aes(x=Transect, y=FEve, label=row.names(FDgrp5)),  colour="black")
+FDivgrp5 <-  ggplot() + geom_text(data = FDgrp5, aes(x=Transect, y=FDiv, label=row.names(FDgrp5)),  colour="black")
+FDisgrp5 <-  ggplot() + geom_text(data = FDgrp5, aes(x=Transect, y=FDis, label=row.names(FDgrp5)),  colour="black")
+
+
+grid.arrange(FRicgrp1,FEvegrp1,FDivgrp1,FDisgrp1,FRicgrp2,FEvegrp2,FDivgrp2,FDisgrp2,FRicgrp3,FEvegrp3,FDivgrp3,FDisgrp3,FRicgrp4,FEvegrp4,FDivgrp4,FDisgrp4,FRicgrp5,FEvegrp5,FDivgrp5,FDisgrp5, ncol=4)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

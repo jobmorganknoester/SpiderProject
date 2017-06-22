@@ -1,0 +1,139 @@
+---
+title: "Ant data preparation"
+author: "Job Knoester"
+date: "8 juin 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(include = TRUE)
+
+library(corrplot)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(ade4)
+library(mice)
+library(reshape2)
+library(FD)
+library(gridExtra)
+library(explor)
+library(picante)
+library(parallel)
+library(hypervolume)
+library(moments)
+library(cati)
+library(ggdendro)
+library(doBy)
+library(BayesFactor)
+```
+
+
+```{r}
+measureant <- read.csv2("ReAntsTraitsSample.csv", na.strings=c("NA"), header=TRUE, sep=";", stringsAsFactors = F)
+colnames (measureant)  <- c("SpecimenCode","Sample", "Site", "Transect", "Plot", "Habitat", "SamplingPoint", "Method", "FocalGroup", 
+                      "SubFamily", "Tribe", "Genus", "Species", "Author", "Sex", "Abundance", "LengthHead",
+                      "WidthHead","LengthMand","LengthClyp","LengthScape","LengthEye","LengthWeber","LengthFemur","WidthThorax")
+
+measureant <- subset(measureant,measureant$Sex != "Queen")
+
+measureant$Gen_sp <- paste(measureant$Genus,measureant$Species, sep = "_")
+
+traitsmeanant <-summaryBy(data = measureant, 
+                       formula = LengthHead+WidthHead+LengthMand+LengthClyp+LengthScape+LengthEye+LengthWeber+LengthFemur+WidthThorax ~ Gen_sp, 
+                       FUN = mean, keep.names = T, na.rm = T)
+
+traitsmeanant <- merge(measureant[,c(1:8,16,26)],traitsmeanant, by="Gen_sp")
+
+traitsmeanant <- subset(traitsmeanant,traitsmeanant$Site=="Itoupé")
+traitsmeanant <- subset(traitsmeanant,traitsmeanant$Method=="Winkler48h")
+# traitsmeanant <- subset(traitsmeanant, traitsmeanant$LengthWeber >= 0.4244)
+
+proant <- cbind(traitsmeanant[,c(1:10)],
+                traitsmeanant$LengthHead*traitsmeanant$WidthHead+traitsmeanant$LengthWeber*traitsmeanant$WidthThorax,
+                traitsmeanant$LengthFemur/traitsmeanant$LengthWeber,
+                traitsmeanant$LengthEye/traitsmeanant$WidthHead,
+                traitsmeanant$LengthMand/sqrt(traitsmeanant$LengthHead^2+traitsmeanant$WidthHead^2),
+                traitsmeanant$LengthClyp/traitsmeanant$LengthHead
+)
+proant <- as.data.frame(proant)
+colnames(proant)[c(11:15)] <- c("body","leg","eye","mand","clyp")
+proant <- na.omit(proant)
+
+write.csv(proant, file = "Ant_weited_traits.csv",  sep=",", row.names=F)
+
+promatant <- proant[,c(1,11:15)]
+promatant <- unique(promatant)
+row.names(promatant) <- promatant$Gen_sp
+promatant <- promatant[,2:dim(promatant)[2]]
+# IT14-0953-39
+# abunmatant <-summaryBy(data = proant, formula = Abundance ~ Gen_sp+Plot, FUN = sum, keep.names = T, na.rm = T)
+# abunmatant <- dcast(abunmatant, Plot~Gen_sp)
+# row.names(abunmatant) <- abunmatant[,1]
+# abunmatant <- abunmatant[,2:dim(abunmatant)[2]]
+# abunmatant[is.na(abunmatant)] <- 0
+
+# promatant <- promatant[-(which(apply(abunmatant,2,sum)==0)),]
+# abunmatant <- abunmatant[,-(which(apply(abunmatant,2,sum)==0))]
+
+abunmatant <- dcast(proant, Plot~Gen_sp, length)
+row.names(abunmatant) <- abunmatant[,1]
+abunmatant <- abunmatant[,2:dim(abunmatant)[2]]
+
+dbFDant <- dbFD(x = promatant, a = abunmatant, w.abun = T, stand.x = TRUE, ord = c("podani", "metric"), asym.bin = NULL, calc.FRic = TRUE, m = "max", stand.FRic = FALSE, scale.RaoQ = FALSE, calc.FGR = FALSE, clust.type = "ward", km.inf.gr = 2, km.sup.gr = nrow(x) - 1, km.iter = 100, km.crit = c("calinski", "ssi"), calc.CWM = TRUE, CWM.type = c("dom", "all"), calc.FDiv = TRUE, dist.bin = 2, print.pco = FALSE, messages = TRUE)
+
+FDant <- as.data.frame(cbind(dbFDant$FRic,dbFDant$FEve,dbFDant$FDiv,dbFDant$FDis))
+colnames(FDant) <- c("FRic","FEve","FDiv","FDis")
+Transect <- c("800m","800m","800m","600m","600m","600m","450m","450m","450m")
+# Transect <- c(800,800,800,600,600,600,450,450,450)
+
+FDant <- cbind(Transect,FDant)
+```
+
+
+
+
+```{r, fig.height=7, fig.width=12}
+FDsal$group <- 'Salticidae'
+FDnotsal$group <- 'Not Salticidae'
+FDant$group <- 'Ants'
+FD <- rbind(FDsal, FDnotsal, FDant)
+FD$plot <- c(row.names(FDsal),row.names(FDnotsal),row.names(FDant))
+FD <- reshape2::melt(FD, id.vars = c('plot', 'Transect', 'group'))
+ggplot(FD, aes(x = Transect, y = value, label = plot)) +
+  facet_wrap(group~variable, scales = "free_y") +
+  geom_text()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,14 +13,6 @@ knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(include = TRUE)
 
-
-tab <- read.csv2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/MeasureSpider.csv")
-tab <- subset(tab, tab$Method == "Winkler48h")
-tab <- tab[order(tab$Specimen),]
-
-
-std <- read.delim2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Standard.txt")
-
 library(corrplot)
 library(ggplot2)
 library(plotly)
@@ -37,7 +29,17 @@ library(hypervolume)
 library(moments)
 library(cati)
 library(ggdendro)
+library(doBy)
 
+```
+
+
+```{r}
+tab <- read.csv2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/MeasureSpider.csv")
+tab <- subset(tab, tab$Method == "Winkler48h")
+tab <- tab[order(tab$Specimen),]
+
+std <- read.delim2("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/Standard.txt")
 ```
 
 ## Manipulation step of the dataset
@@ -81,44 +83,66 @@ transformation <- function (colzoom1, coltransform1, colzoom2, coltransform2, co
       data[,coltransform3]*std$standard[match(data[,colzoom3],std$zoom)])
   }
 
-measure <- transformation(colzoom1 = 5, coltransform1 = c(6:9), 
+measurespider <- transformation(colzoom1 = 5, coltransform1 = c(6:9), 
                       colzoom2 = 10, coltransform2 = c(11:12), 
                       colzoom3 = 13, coltransform3 = c(14:18),
                       data = tab)
 
-measure <- measure[which(is.na(measure$LengthCephalo)==FALSE),]
-measure <- subset(measure, measure$LengthCephalo >= 0.4025)
+# measuresmallspider <- read_delim("~/etudes/Cours Master/Cours M2/Stage/SpiderProject/MeasureSmallSpider.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+# binomeasuresmallspider <- measurespider[match(measuresmallspider$Specimen,measurespider$Specimen),]
+# 
+# for (i in 1:277) { for (j in 5:15) {if (is.na(measuresmallspider[i,j])==TRUE) {measuresmallspider[i,j] <- binomeasuresmallspider[i,j+5]}}}
+# 
+# completmeasuresmallspidermean <- mice(measuresmallspider[,5:15], seed = 1)
+# completmeasuresmallspider <- complete(completmeasuresmallspidermean, 1)
+# completmeasuresmallspider <- cbind(measuresmallspider[,2],completmeasuresmallspider)
+# 
+# measurespider[match(completmeasuresmallspider$Specimen,measurespider$Specimen),c(10:20)] <- completmeasuresmallspider[,c(2:12)]
 
-completmeasuremean <- mice(measure[,10:20], seed = 1)
-completmeasure <- complete(completmeasuremean, 1)
-completmeasure <- cbind(measure[,c(1:9)],completmeasure)
+measurespider <- measurespider[which(is.na(measurespider$LengthCephalo)==FALSE),]
+measurespider <- subset(measurespider, measurespider$LengthCephalo >= 0.4025)
+
+completmeasurespidermean <- mice(measurespider[,10:20], seed = 1)
+completmeasurespider <- complete(completmeasurespidermean, 1)
+completmeasurespider <- cbind(measurespider[,c(1:9)],completmeasurespider)
+
 
 ```
 
 In the **proportion** table, all the morphometrics measure from the **completmeasure** table is weighted. (The body size is given by the give the body area ($Lceph*Wceph+Labdo*Wabdo$). The weighted leg size is given by the mean of femur 1 and 3 divided by the cephalotorax length. The larger eye size is weighted by the cephalotoxax width. Chelicera area is divided by the chephalotorax area. The paplus tarse length is weighted by the cephalotoxax length.
 
 ```{r}
-proportion <- cbind(completmeasure[,c(1:9)],
-                    completmeasure$LengthCephalo*completmeasure$WidthCephalo+completmeasure$LengthAbdomen*completmeasure$WidthAbdomen,
-                    ((completmeasure$LengthF1femur+completmeasure$LengthF3femur)/2)/completmeasure$LengthCephalo,
-                    completmeasure$LengthEye/completmeasure$WidthCephalo,
-                    (completmeasure$LengthChelicera*completmeasure$WidthChelicera)/(completmeasure$LengthCephalo*completmeasure$WidthCephalo),
-                    completmeasure$LengthFang/completmeasure$WidthChelicera,
-                    completmeasure$LengthPalpusTarsus/completmeasure$LengthCephalo
+proportion <- cbind(completmeasurespider[,c(1:9)],
+                    completmeasurespider$LengthCephalo*completmeasurespider$WidthCephalo+
+                      completmeasurespider$LengthAbdomen*completmeasurespider$WidthAbdomen,
+                    ((completmeasurespider$LengthF1femur+completmeasurespider$LengthF3femur)/2)/
+                      completmeasurespider$LengthCephalo,
+                    completmeasurespider$LengthEye/completmeasurespider$WidthCephalo,
+                    completmeasurespider$LengthChelicera/
+                      completmeasurespider$LengthCephalo,
+                    completmeasurespider$LengthFang/completmeasurespider$LengthCephalo#,
+                    # completmeasurespider$LengthPalpusTarsus/completmeasurespider$LengthCephalo
                     )
 
-names(proportion)[c(10:15)] <- c("body","leg","eye","chel","fang","palp")
-row.names(proportion) <- proportion$Specimen
+names(proportion)[c(10:14)] <- c("body","leg","eye","chel","fang")
+
+proportion$Taxo[which(proportion$Taxo == "blond white salticidae" | proportion$Taxo == "white salticidae" | proportion$Taxo == "whitesalticideae")] <- "salticidae"
+proportion$Taxo[which(proportion$Taxo == "abdostriped" | proportion$Taxo == "bandequaleye" | proportion$Taxo == "fatequaleye" | proportion$Taxo == "stripedequaleye")] <- "equaleye"
+
+write.csv(proportion, file = "Spider_weited_traits.csv",  sep=",", row.names=F)
+
+row.names(proportion) <- paste(proportion$Specimen,proportion$Taxo,proportion$StageSex)
+proportioncs <- cbind(proportion[,c(1:9)],scale(proportion[,c(10:15)],center = T, scale = T))
 
 ```
 
 Here particular taxa is remooved
 ```{r}
-# proportion <- subset(proportion, proportion$Taxo != "blond white salticidae")
-# proportion <- subset(proportion, proportion$Taxo != "salticidae")
-# proportion <- subset(proportion, proportion$Taxo != "white salticidae")
-# proportion <- subset(proportion, proportion$Taxo != "whitesalticideae")
-# proportion <- subset(proportion, proportion$eye != 0)
+proportion <- subset(proportion, proportion$Taxo != "salticidae")
+proportion <- subset(proportion, proportion$eye != 0)
+
+proportion <- subset(proportion, proportion$Taxo == "salticidae")
+
 ```
 
 Transphoration of the proportion data.
@@ -138,6 +162,14 @@ ggpairs(proportionlog, mapping = aes(color = Transect, alpha = 0.3), columns = 1
 
 ```
 
+## Difference between microscope and binocular measure 
+```{r}
+ggplot() + geom_point(aes(x=measuresmallspider$LengthAbdomen,y=binomeasuresmallspider$LengthAbdomen))
+ggplot() + geom_point(aes(x=measuresmallspider$LengthCephalo,y=binomeasuresmallspider$LengthCephalo))
+ggplot() + geom_point(aes(x=measuresmallspider$WidthAbdomen,y=binomeasuresmallspider$WidthAbdomen))
+ggplot() + geom_point(aes(x=measuresmallspider$WidthCephalo,y=binomeasuresmallspider$WidthCephalo))
+```
+
 ## Traits distributions
 ### Palpus with stage and sex
 
@@ -147,6 +179,7 @@ a <- ggplot(proportion, aes(y=palp, x=proportion$StageSex)) +
   
 pairwise.wilcox.test(proportion$palp,proportion$StageSex)
 ```
+
 
 
 other traits
@@ -260,7 +293,7 @@ besttrans
 
 ## PCA center scaled with log-transformed traits
 ```{r}
-pcaproportion <- dudi.pca(proportion[,c(10:15)], center=T, scale=T, scannf = F, nf = 4)
+pcaproportion <- dudi.pca(proportion[,c(10:13)], center=T, scale=T, scannf = F, nf = 4)
 # barplot((pcaproportion$eig/length(pcaproportion$eig))*100)
 # pcaproportion$eig
 # pcaproportion$co
